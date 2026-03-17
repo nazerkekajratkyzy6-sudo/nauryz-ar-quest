@@ -1,72 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Табло</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body{
-  font-family:sans-serif;
-  background:#020617;
-  color:white;
-  padding:20px;
-}
-table{
-  width:100%;
-  border-collapse:collapse;
-  background:#0f172a;
-}
-th,td{
-  border:1px solid #334155;
-  padding:10px;
-  text-align:left;
-}
-th{
-  background:#1e293b;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Табло</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: white;
+      padding: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #0f172a;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #1e293b;
+      text-align: left;
+    }
+    th {
+      background: #1e293b;
+    }
+  </style>
 </head>
 <body>
-
-<h1>Табло результатов</h1>
-<table id="table">
-  <tr>
-    <th>Команда</th>
-    <th>Очки</th>
-    <th>Найдено</th>
-  </tr>
-</table>
-
-<script type="module" src="./firebase-config.js"></script>
-
-<script type="module">
-const { db, ref, onValue } = window.FB;
-
-onValue(ref(db, "teams"), (snapshot) => {
-  let html = `
+  <h1>Табло результатов</h1>
+  <table id="table">
     <tr>
+      <th>Место</th>
       <th>Команда</th>
       <th>Очки</th>
-      <th>Найдено</th>
+      <th>Маркеры</th>
+      <th>Дұрыс</th>
+      <th>Қате</th>
+      <th>Уақыт</th>
     </tr>
-  `;
+  </table>
 
-  const data = snapshot.val() || {};
-  const teams = Object.values(data).sort((a, b) => (b.score || 0) - (a.score || 0));
+  <script src="./game-data.js"></script>
+  <script type="module" src="./firebase-config.js"></script>
+  <script type="module">
+    const table = document.getElementById("table");
+    const { db, ref, onValue } = window.FB;
 
-  teams.forEach(team => {
-    html += `
-      <tr>
-        <td>${team.displayName || ""}</td>
-        <td>${team.score || 0}</td>
-        <td>${team.found || 0}</td>
-      </tr>
-    `;
-  });
+    let teamsCache = {};
 
-  document.getElementById("table").innerHTML = html;
-});
-</script>
+    function formatLeft(startTime) {
+      if (!startTime) return "10:00";
+      const passed = Math.floor((Date.now() - startTime) / 1000);
+      const left = Math.max(0, window.GAME.durationSeconds - passed);
+      const m = Math.floor(left / 60).toString().padStart(2, "0");
+      const s = (left % 60).toString().padStart(2, "0");
+      return `${m}:${s}`;
+    }
 
+    function render() {
+      const teams = Object.values(teamsCache).sort((a, b) => (b.score || 0) - (a.score || 0));
+      let html = `
+        <tr>
+          <th>Место</th>
+          <th>Команда</th>
+          <th>Очки</th>
+          <th>Маркеры</th>
+          <th>Дұрыс</th>
+          <th>Қате</th>
+          <th>Уақыт</th>
+        </tr>
+      `;
+
+      teams.forEach((t, idx) => {
+        html += `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${t.displayName || ""}</td>
+            <td>${t.score || 0}</td>
+            <td>${t.found || 0}</td>
+            <td>${t.correct || 0}</td>
+            <td>${t.wrong || 0}</td>
+            <td>${formatLeft(t.startTime)}</td>
+          </tr>
+        `;
+      });
+
+      table.innerHTML = html;
+    }
+
+    onValue(ref(db, "teams"), (snapshot) => {
+      teamsCache = snapshot.val() || {};
+      render();
+    });
+
+    setInterval(render, 1000);
+  </script>
 </body>
 </html>
