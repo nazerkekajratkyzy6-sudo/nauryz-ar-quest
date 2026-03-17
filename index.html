@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Nauryz AR Quest</title>
+</head>
+
+<body style="font-family:sans-serif;text-align:center;margin-top:50px;">
+
+<h1>Наурыз AR Quest</h1>
+
+<input id="class" placeholder="Класс"><br><br>
+<input id="team" placeholder="Название команды"><br><br>
+<input id="code" placeholder="Код игры"><br><br>
+
+<button onclick="start()">Бастау</button>
+
+<script type="module" src="./firebase-config.js"></script>
+
+<script type="module">
+const GAME_CODE = "NAURYZ2026";
+
+window.start = async function(){
+
+const className = document.getElementById("class").value;
+const teamName = document.getElementById("team").value;
+const code = document.getElementById("code").value;
+
+if(code !== GAME_CODE){
+alert("Код неверный");
+return;
+}
+
+const teamId = className + "_" + teamName + "_" + Date.now();
+
+const { db, doc, setDoc } = window.FB;
+
+await setDoc(doc(db,"teams",teamId),{
+className,
+teamName,
+score:0,
+found:0
+});
+
+localStorage.setItem("teamId", teamId);
+
+window.location = "floor1.html";
+
+}
+</script>
+
+</body>
+</html>

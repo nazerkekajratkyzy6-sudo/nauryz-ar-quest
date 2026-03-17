@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Табло</title>
+</head>
+
+<body>
+
+<h1>Рейтинг</h1>
+
+<table border="1" id="table"></table>
+
+<script type="module" src="./firebase-config.js"></script>
+
+<script type="module">
+
+const { db, collection, query, orderBy, onSnapshot } = window.FB;
+
+const q = query(collection(db,"teams"), orderBy("score","desc"));
+
+onSnapshot(q, snap => {
+
+let html = "<tr><th>Команда</th><th>Очки</th></tr>";
+
+snap.forEach(doc=>{
+let t = doc.data();
+html += `<tr><td>${t.className} ${t.teamName}</td><td>${t.score}</td></tr>`;
+});
+
+document.getElementById("table").innerHTML = html;
+
+});
+
+</script>
+
+</body>
+</html>
