@@ -2,31 +2,77 @@
 <html>
 <head>
 <meta charset="UTF-8">
-
+<title>Floor 1 AR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-
+<script type="module" src="./firebase-config.js"></script>
 </head>
 
 <body>
 
-<a-scene mindar-image="imageTargetSrc: ./targets/floor1.mind">
+<a-scene mindar-image="imageTargetSrc: ./targets/floor1.mind" embedded color-space="sRGB">
 
-<a-camera position="0 0 0"></a-camera>
+  <a-camera position="0 0 0"></a-camera>
 
-<a-entity mindar-image-target="targetIndex: 0">
-<a-box color="red" position="0 0.5 0"></a-box>
-</a-entity>
+  <a-entity mindar-image-target="targetIndex: 0">
+    <a-sphere id="marker1" color="gold" position="0 0.5 0"
+      animation="property: scale; from: 0 0 0; to: 1 1 1; dur: 800">
+    </a-sphere>
+  </a-entity>
 
-<a-entity mindar-image-target="targetIndex: 1">
-<a-sphere color="blue" position="0 0.5 0"></a-sphere>
-</a-entity>
+  <a-entity mindar-image-target="targetIndex: 1">
+    <a-box id="marker2" color="red" position="0 0.5 0"
+      animation="property: scale; from: 0 0 0; to: 1 1 1; dur: 800">
+    </a-box>
+  </a-entity>
 
-<a-entity mindar-image-target="targetIndex: 2">
-<a-cone color="green" position="0 0.5 0"></a-cone>
-</a-entity>
+  <a-entity mindar-image-target="targetIndex: 2">
+    <a-cone id="marker3" color="green" position="0 0.5 0"
+      animation="property: scale; from: 0 0 0; to: 1 1 1; dur: 800">
+    </a-cone>
+  </a-entity>
 
 </a-scene>
+
+<script type="module">
+const teamId = localStorage.getItem("teamId");
+const { db, ref, get, update } = window.FB;
+
+async function addPoint(markerCode, points) {
+  if (!teamId) return;
+
+  const attemptPath = "attempts/" + teamId + "_" + markerCode;
+  const attemptSnap = await get(ref(db, attemptPath));
+
+  if (attemptSnap.exists()) {
+    alert("Бұл метка уже ашылған");
+    return;
+  }
+
+  const teamSnap = await get(ref(db, "teams/" + teamId));
+  const team = teamSnap.val();
+
+  await update(ref(db, "teams/" + teamId), {
+    score: (team.score || 0) + points,
+    found: (team.found || 0) + 1
+  });
+
+  await update(ref(db, "attempts"), {
+    [teamId + "_" + markerCode]: {
+      teamId,
+      markerCode,
+      points
+    }
+  });
+
+  alert("Дұрыс! +" + points + " ұпай");
+}
+
+document.getElementById("marker1").addEventListener("click", () => addPoint("N01", 1));
+document.getElementById("marker2").addEventListener("click", () => addPoint("N02", 1));
+document.getElementById("marker3").addEventListener("click", () => addPoint("N03", 5));
+</script>
 
 </body>
 </html>
