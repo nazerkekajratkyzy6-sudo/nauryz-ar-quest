@@ -1,78 +1,83 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Floor 1 AR</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-<script type="module" src="./firebase-config.js"></script>
-</head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Floor 1 AR</title>
 
-<body>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-<a-scene mindar-image="imageTargetSrc: ./targets/floor1.mind" embedded color-space="sRGB">
-
-  <a-camera position="0 0 0"></a-camera>
-
-  <a-entity mindar-image-target="targetIndex: 0">
-    <a-sphere id="marker1" color="gold" position="0 0.5 0"
-      animation="property: scale; from: 0 0 0; to: 1 1 1; dur: 800">
-    </a-sphere>
-  </a-entity>
-
-  <a-entity mindar-image-target="targetIndex: 1">
-    <a-box id="marker2" color="red" position="0 0.5 0"
-      animation="property: scale; from: 0 0 0; to: 1 1 1; dur: 800">
-    </a-box>
-  </a-entity>
-
-  <a-entity mindar-image-target="targetIndex: 2">
-    <a-cone id="marker3" color="green" position="0 0.5 0"
-      animation="property: scale; from: 0 0 0; to: 1 1 1; dur: 800">
-    </a-cone>
-  </a-entity>
-
-</a-scene>
-
-<script type="module">
-const teamId = localStorage.getItem("teamId");
-const { db, ref, get, update } = window.FB;
-
-async function addPoint(markerCode, points) {
-  if (!teamId) return;
-
-  const attemptPath = "attempts/" + teamId + "_" + markerCode;
-  const attemptSnap = await get(ref(db, attemptPath));
-
-  if (attemptSnap.exists()) {
-    alert("Бұл метка уже ашылған");
-    return;
-  }
-
-  const teamSnap = await get(ref(db, "teams/" + teamId));
-  const team = teamSnap.val();
-
-  await update(ref(db, "teams/" + teamId), {
-    score: (team.score || 0) + points,
-    found: (team.found || 0) + 1
-  });
-
-  await update(ref(db, "attempts"), {
-    [teamId + "_" + markerCode]: {
-      teamId,
-      markerCode,
-      points
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
     }
-  });
 
-  alert("Дұрыс! +" + points + " ұпай");
-}
+    body {
+      position: fixed;
+      inset: 0;
+    }
 
-document.getElementById("marker1").addEventListener("click", () => addPoint("N01", 1));
-document.getElementById("marker2").addEventListener("click", () => addPoint("N02", 1));
-document.getElementById("marker3").addEventListener("click", () => addPoint("N03", 5));
-</script>
+    a-scene {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
 
+    .hint {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      z-index: 10;
+      color: white;
+      background: rgba(0,0,0,0.55);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="hint">Камераны суретке бағыттаңыз</div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets/floor1.mind; autoStart: true; uiScanning: yes;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights"
+  >
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- N01 -->
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-box color="red" position="0 0.5 0" depth="0.3" height="0.3" width="0.3"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
+      </a-box>
+    </a-entity>
+
+    <!-- N02 -->
+    <a-entity mindar-image-target="targetIndex: 1">
+      <a-sphere color="gold" position="0 0.5 0" radius="0.22"
+        animation="property: scale; from: 0 0 0; to: 1 1 1; dur: 800">
+      </a-sphere>
+    </a-entity>
+
+    <!-- N03 -->
+    <a-entity mindar-image-target="targetIndex: 2">
+      <a-cone color="green" position="0 0.5 0" radius-bottom="0.25" height="0.5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 2500">
+      </a-cone>
+    </a-entity>
+  </a-scene>
 </body>
 </html>
