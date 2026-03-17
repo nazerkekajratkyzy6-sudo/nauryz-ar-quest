@@ -1,80 +1,121 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Nauryz AR Quest</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body{
-  font-family:sans-serif;
-  text-align:center;
-  margin-top:40px;
-  background:#0f172a;
-  color:white;
-}
-input,button{
-  padding:12px;
-  margin:8px;
-  width:280px;
-  border-radius:12px;
-  border:none;
-}
-button{
-  background:#f59e0b;
-  color:#111827;
-  font-weight:bold;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Наурыз AR Quest</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+    .card {
+      width: min(92vw, 440px);
+      background: rgba(255,255,255,.08);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.35);
+    }
+    input, button {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      margin-top: 10px;
+      border-radius: 12px;
+      border: 0;
+      font-size: 16px;
+    }
+    input {
+      background: #0f172a;
+      color: white;
+      border: 1px solid #334155;
+    }
+    button {
+      background: #f59e0b;
+      color: #111827;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .error {
+      color: #fecaca;
+      min-height: 18px;
+      margin-top: 10px;
+    }
+    a { color: #fde68a; }
+  </style>
 </head>
 <body>
+  <div class="card">
+    <h1>Наурыз AR Quest</h1>
+    <p>Командаңызды тіркеңіз.</p>
 
-<h1>Наурыз AR Quest</h1>
+    <input id="className" placeholder="Класс (мысалы 7А)" />
+    <input id="teamName" placeholder="Название команды" />
+    <input id="gameCode" placeholder="Код игры" />
+    <button id="startBtn">Бастау</button>
+    <div class="error" id="errorBox"></div>
 
-<input id="class" placeholder="Класс"><br>
-<input id="team" placeholder="Название команды"><br>
-<input id="code" placeholder="Код игры"><br>
+    <p><a href="./leaderboard.html">Таблоны ашу</a></p>
+  </div>
 
-<button onclick="startGame()">Бастау</button>
+  <script src="./game-data.js"></script>
+  <script type="module" src="./firebase-config.js"></script>
+  <script type="module">
+    const startBtn = document.getElementById("startBtn");
+    const errorBox = document.getElementById("errorBox");
 
-<script type="module" src="./firebase-config.js"></script>
+    function slugify(text) {
+      return text
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-zа-яәіңғүұқөһ0-9_-]/gi, "");
+    }
 
-<script type="module">
-const GAME_CODE = "NAURYZ2026";
+    startBtn.addEventListener("click", async () => {
+      errorBox.textContent = "";
 
-window.startGame = async function () {
-  const className = document.getElementById("class").value.trim();
-  const teamName = document.getElementById("team").value.trim();
-  const code = document.getElementById("code").value.trim();
+      const className = document.getElementById("className").value.trim();
+      const teamName = document.getElementById("teamName").value.trim();
+      const gameCode = document.getElementById("gameCode").value.trim();
 
-  if (!className || !teamName || !code) {
-    alert("Барлық өрісті толтырыңыз");
-    return;
-  }
+      if (!className || !teamName || !gameCode) {
+        errorBox.textContent = "Барлық өрістерді толтырыңыз.";
+        return;
+      }
 
-  if (code !== GAME_CODE) {
-    alert("Код неверный");
-    return;
-  }
+      if (gameCode !== window.GAME.gameCode) {
+        errorBox.textContent = "Код игры неверный.";
+        return;
+      }
 
-  const teamId = className + "_" + teamName + "_" + Date.now();
-  const displayName = className + " — " + teamName;
+      const teamId = `${slugify(className)}_${slugify(teamName)}_${Date.now()}`;
+      const displayName = `${className} — ${teamName}`;
+      const { db, ref, set } = window.FB;
 
-  const { db, ref, set } = window.FB;
+      await set(ref(db, "teams/" + teamId), {
+        className,
+        teamName,
+        displayName,
+        score: 0,
+        found: 0,
+        correct: 0,
+        wrong: 0,
+        startTime: Date.now(),
+        lastUpdated: Date.now()
+      });
 
-  await set(ref(db, "teams/" + teamId), {
-    className,
-    teamName,
-    displayName,
-    score: 0,
-    found: 0
-  });
+      localStorage.setItem("teamId", teamId);
+      localStorage.setItem("displayName", displayName);
+      localStorage.setItem("startTime", String(Date.now()));
 
-  localStorage.setItem("teamId", teamId);
-  localStorage.setItem("displayName", displayName);
-
-  window.location.href = "./floor1.html";
-}
-</script>
-
+      window.location.href = "./floor1.html";
+    });
+  </script>
 </body>
 </html>
