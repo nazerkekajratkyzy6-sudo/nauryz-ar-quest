@@ -3,49 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <title>Nauryz AR Quest</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+  font-family:sans-serif;
+  text-align:center;
+  margin-top:40px;
+  background:#0f172a;
+  color:white;
+}
+input,button{
+  padding:12px;
+  margin:8px;
+  width:280px;
+  border-radius:12px;
+  border:none;
+}
+button{
+  background:#f59e0b;
+  color:#111827;
+  font-weight:bold;
+}
+</style>
 </head>
-
-<body style="font-family:sans-serif;text-align:center;margin-top:50px;">
+<body>
 
 <h1>Наурыз AR Quest</h1>
 
-<input id="class" placeholder="Класс"><br><br>
-<input id="team" placeholder="Название команды"><br><br>
-<input id="code" placeholder="Код игры"><br><br>
+<input id="class" placeholder="Класс"><br>
+<input id="team" placeholder="Название команды"><br>
+<input id="code" placeholder="Код игры"><br>
 
-<button onclick="start()">Бастау</button>
+<button onclick="startGame()">Бастау</button>
 
 <script type="module" src="./firebase-config.js"></script>
 
 <script type="module">
 const GAME_CODE = "NAURYZ2026";
 
-window.start = async function(){
+window.startGame = async function () {
+  const className = document.getElementById("class").value.trim();
+  const teamName = document.getElementById("team").value.trim();
+  const code = document.getElementById("code").value.trim();
 
-const className = document.getElementById("class").value;
-const teamName = document.getElementById("team").value;
-const code = document.getElementById("code").value;
+  if (!className || !teamName || !code) {
+    alert("Барлық өрісті толтырыңыз");
+    return;
+  }
 
-if(code !== GAME_CODE){
-alert("Код неверный");
-return;
-}
+  if (code !== GAME_CODE) {
+    alert("Код неверный");
+    return;
+  }
 
-const teamId = className + "_" + teamName + "_" + Date.now();
+  const teamId = className + "_" + teamName + "_" + Date.now();
+  const displayName = className + " — " + teamName;
 
-const { db, doc, setDoc } = window.FB;
+  const { db, ref, set } = window.FB;
 
-await setDoc(doc(db,"teams",teamId),{
-className,
-teamName,
-score:0,
-found:0
-});
+  await set(ref(db, "teams/" + teamId), {
+    className,
+    teamName,
+    displayName,
+    score: 0,
+    found: 0
+  });
 
-localStorage.setItem("teamId", teamId);
+  localStorage.setItem("teamId", teamId);
+  localStorage.setItem("displayName", displayName);
 
-window.location = "floor1.html";
-
+  window.location.href = "./floor1.html";
 }
 </script>
 
