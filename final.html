@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Финал</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <style>
+    html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; font-family:Arial,sans-serif; }
+    .hud { position: fixed; top: 10px; left: 10px; right: 10px; z-index: 20; display:flex; justify-content:space-between; gap:10px; }
+    .box { background: rgba(15,23,42,.82); color:white; padding:10px 12px; border-radius:14px; }
+    .panel {
+      position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 30;
+      background: rgba(15,23,42,.95); color:white; border-radius:18px; padding:18px; display:none;
+    }
+    .panel.active { display:block; }
+    .panel button, .panel a {
+      display:block; width:100%; box-sizing:border-box; margin-top:10px; padding:12px;
+      border:none; border-radius:12px; background:#f59e0b; color:#111827; font-weight:bold; text-align:center; text-decoration:none;
+    }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <div class="box">
+      <div id="teamName">Команда: —</div>
+      <div id="scoreInfo">Очки: 0</div>
+      <div id="timerInfo">10:00</div>
+    </div>
+    <div class="box">Финал</div>
+  </div>
+
+  <div class="panel" id="bonusPanel">
+    <h2>⭐ Финалдық бонус</h2>
+    <p>Сіз финалдық маркерді таптыңыз. Бонусты алыңыз.</p>
+    <button id="claimBtn">Бонусты алу (+5)</button>
+    <a href="./leaderboard.html">Табло</a>
+  </div>
+
+  <audio id="foundSound" src="./assets/found.mp3"></audio>
+  <audio id="successSound" src="./assets/success.mp3"></audio>
+
+  <a-scene embedded arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
+    <a-marker type="pattern" url="./markers/M13.patt" id="marker-M13">
+      <a-octahedron color="#facc15" position="0 0.5 0" radius="0.35"
+        animation="property: rotation; to: 0 360 360; loop: true; dur: 2100"></a-octahedron>
+      <a-text value="FINAL BONUS" position="0 1 0" align="center" color="yellow"></a-text>
+    </a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script src="./game-data.js"></script>
+  <script type="module" src="./firebase-config.js"></script>
+  <script type="module" src="./app.js"></script>
+  <script type="module">
+    const teamId = window.App.getTeamId();
+    if (!teamId) window.location.href = "./index.html";
+
+    await window.App.ensureTeamTimer();
+
+    const panel = document.getElementById("bonusPanel");
+    const claimBtn = document.getElementById("claimBtn");
+    const teamNameEl = document.getElementById("teamName");
+    const scoreInfo = document.getElementById("scoreInfo");
+    const timerInfo = document.getElementById("timerInfo");
+
+    teamNameEl.textContent = "Команда: " + window.App.getDisplayName();
+
+    window.App.startCountdown(timerInfo, () => {
+      claimBtn.disabled = true;
+      claimBtn.textContent = "Уақыт аяқталды";
+    });
+
+    async function refreshScore() {
+      const team = await window.App.getTeamData();
+      scoreInfo.textContent = `Очки: ${team?.score || 0}`;
+    }
+    refreshScore();
+    setInterval(refreshScore, 2000);
+
+    document.getElementById("marker-M13").addEventListener("markerFound", () => {
+      window.App.playSound("foundSound");
+      panel.classList.add("active");
+    });
+
+    claimBtn.addEventListener("click", async () => {
+      if (window.App.remainingSeconds() <= 0) return alert("Уақыт аяқталды");
+
+      const done = await window.App.markerAlreadyDone(teamId, "M13");
+      if (done) return alert("Бонус уже алынған");
+
+      const marker = window.GAME.markers.M13;
+      await window.App.updateTeamStats(teamId, marker.bonusPoints || 5, 1, 1, 0);
+      await window.App.saveMarkerAttempt(teamId, "M13", {
+        markerId: "M13",
+        totalScore: marker.bonusPoints || 5,
+        totalCorrect: 1,
+        totalWrong: 0,
+        bonus: true,
+finishedAt: Date.now()
+      });
+
+      window.App.playSound("successSound");
+      alert("Бонус алынды! +" + (marker.bonusPoints || 5));
+      refreshScore();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>2 этаж</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <style>
+    html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; font-family:Arial,sans-serif; }
+    .hud { position: fixed; top: 10px; left: 10px; right: 10px; z-index: 20; display:flex; justify-content:space-between; gap:10px; }
+    .box { background: rgba(15,23,42,.82); color:white; padding:10px 12px; border-radius:14px; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 30; display:none; align-items:center; justify-content:center; padding:20px; }
+    .modal.active { display:flex; }
+    .card { width:min(94vw,520px); max-height:88vh; overflow:auto; background:#0f172a; color:white; border-radius:20px; padding:18px; }
+    .card input { width:100%; box-sizing:border-box; margin-top:12px; padding:12px; border-radius:10px; border:1px solid #334155; background:#111827; color:white; }
+    .card button { width:100%; margin-top:10px; padding:12px; border:0; border-radius:12px; cursor:pointer; background:#1e293b; color:white; }
+    .card .closeBtn { background:#334155; }
+    .card .submitBtn { background:#f59e0b; color:#111827; font-weight:bold; }
+    .media img, .media video, .media audio { width:100%; margin-top:10px; border-radius:12px; }
+    .navBtns { display:flex; gap:10px; margin-top:10px; }
+    .navBtns a { flex:1; text-align:center; text-decoration:none; background:#334155; color:white; padding:10px; border-radius:10px; }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <div class="box">
+      <div id="teamName">Команда: —</div>
+      <div id="scoreInfo">Очки: 0</div>
+      <div id="timerInfo">10:00</div>
+    </div>
+    <div class="box">2 этаж</div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="card">
+      <h2 id="modalTitle">Маркер</h2>
+      <div class="media" id="mediaBox"></div>
+      <div id="questionBox"></div>
+      <input id="answerInput" placeholder="Жауапты енгізіңіз" />
+      <button class="submitBtn" id="submitBtn">Жауап беру</button>
+      <div id="statusBox" style="margin-top:10px;"></div>
+      <div class="navBtns">
+        <a href="./leaderboard.html">Табло</a>
+        <a href="./floor3.html">3 этаж →</a>
+      </div>
+      <button class="closeBtn" id="closeBtn">Жабу</button>
+    </div>
+  </div>
+
+  <audio id="foundSound" src="./assets/found.mp3"></audio>
+  <audio id="successSound" src="./assets/success.mp3"></audio>
+  <audio id="failSound" src="./assets/fail.mp3"></audio>
+
+  <a-scene embedded arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
+    <a-marker type="pattern" url="./markers/M05.patt" id="marker-M05"></a-marker>
+    <a-marker type="pattern" url="./markers/M06.patt" id="marker-M06"></a-marker>
+    <a-marker type="pattern" url="./markers/M07.patt" id="marker-M07"></a-marker>
+    <a-marker type="pattern" url="./markers/M08.patt" id="marker-M08"></a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script src="./game-data.js"></script>
+  <script type="module" src="./firebase-config.js"></script>
+  <script type="module" src="./app.js"></script>
+  <script type="module">
+    const markerIds = ["M05", "M06", "M07", "M08"];
+    const teamId = window.App.getTeamId();
+    if (!teamId) window.location.href = "./index.html";
+
+    await window.App.ensureTeamTimer();
+
+    const modal = document.getElementById("modal");
+    const modalTitle = document.getElementById("modalTitle");
+    const mediaBox = document.getElementById("mediaBox");
+    const questionBox = document.getElementById("questionBox");
+    const answerInput = document.getElementById("answerInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const statusBox = document.getElementById("statusBox");
+    const closeBtn = document.getElementById("closeBtn");
+    const teamNameEl = document.getElementById("teamName");
+    const scoreInfo = document.getElementById("scoreInfo");
+    const timerInfo = document.getElementById("timerInfo");
+
+    let currentMarkerId = null;
+    let currentQuestionIndex = 0;
+    let totalScore = 0;
+    let totalCorrect = 0;
+    let totalWrong = 0;
+
+    teamNameEl.textContent = "Команда: " + window.App.getDisplayName();
+
+    closeBtn.addEventListener("click", () => {
+      modal.classList.remove("active");
+      resetModalState();
+    });
+
+    window.App.startCountdown(timerInfo, () => {
+      submitBtn.disabled = true;
+      answerInput.disabled = true;
+      statusBox.textContent = "Уақыт аяқталды";
+    });
+
+    async function refreshScore() {
+      const team = await window.App.getTeamData();
+      scoreInfo.textContent = `Очки: ${team?.score || 0}`;
+    }
+    refreshScore();
+    setInterval(refreshScore, 2000);
+
+    function resetModalState() {
+      currentMarkerId = null;
+      currentQuestionIndex = 0;
+      totalScore = 0;
+      totalCorrect = 0;
+      totalWrong = 0;
+      questionBox.innerHTML = "";
+      answerInput.value = "";
+      statusBox.textContent = "";
+      mediaBox.innerHTML = "";
+      submitBtn.disabled = false;
+      answerInput.disabled = false;
+    }
+
+    async function openMarker(markerId) {
+      if (window.App.remainingSeconds() <= 0) return alert("Уақыт аяқталды");
+      if (currentMarkerId === markerId && modal.classList.contains("active")) return;
+
+      const done = await window.App.markerAlreadyDone(teamId, markerId);
+      if (done) return;
+
+      const marker = window.GAME.markers[markerId];
+      currentMarkerId = markerId;
+      currentQuestionIndex = 0;
+      totalScore = 0;
+      totalCorrect = 0;
+      totalWrong = 0;
+
+      modal.classList.add("active");
+      modalTitle.textContent = `${marker.rare ? "⭐ " : ""}${marker.title}`;
+      window.App.renderMedia(mediaBox, marker);
+      showQuestion();
+    }
+
+    function showQuestion() {
+      const marker = window.GAME.markers[currentMarkerId];
+      const q = marker.questions[currentQuestionIndex];
+      questionBox.innerHTML = `<div style="margin-top:12px;font-weight:bold;">${q.text}</div>`;
+      answerInput.value = "";
+      answerInput.focus();
+      statusBox.textContent = `Сұрақ ${currentQuestionIndex + 1} / ${marker.questions.length}`;
+    }
+
+    async function finishMarker() {
+      await window.App.updateTeamStats(teamId, totalScore, 1, totalCorrect, totalWrong);
+      await window.App.saveMarkerAttempt(teamId, currentMarkerId, {
+        markerId: currentMarkerId,
+        totalScore,
+        totalCorrect,
+        totalWrong,
+        finishedAt: Date.now()
+      });
+
+      statusBox.textContent = `Аяқталды! +${totalScore} ұпай`;
+      refreshScore();
+      setTimeout(() => {
+        modal.classList.remove("active");
+        resetModalState();
+      }, 1200);
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      if (!currentMarkerId) return;
+      if (window.App.remainingSeconds() <= 0) return alert("Уақыт аяқталды");
+
+      const marker = window.GAME.markers[currentMarkerId];
+      const q = marker.questions[currentQuestionIndex];
+      const userAnswer = answerInput.value.trim();
+
+      if (!userAnswer) {
+        statusBox.textContent = "Жауап жазыңыз";
+        return;
+      }
+
+      const correct = window.App.isAccepted(userAnswer, q.acceptedAnswers);
+
+      if (correct) {
+        window.App.playSound("successSound");
+        totalScore += q.points;
+        totalCorrect += 1;
+        statusBox.textContent = `Дұрыс! +${q.points}`;
+      } else {
+        window.App.playSound("failSound");
+        totalWrong += 1;
+        statusBox.textContent = "Қате";
+      }
+
+      if (currentQuestionIndex + 1 < marker.questions.length) {
+        currentQuestionIndex += 1;
+        setTimeout(showQuestion, 600);
+      } else {
+        setTimeout(finishMarker, 700);
+      }
+    });
+
+    markerIds.forEach((mid) => {
+      const el = document.getElementById("marker-" + mid);
+      const m = window.GAME.markers[mid];
+      el.innerHTML = window.App.makeEntity(m.arShape, m.arColor, mid);
+
+      el.addEventListener("markerFound", () => {
+        window.App.playSound("foundSound");
+        openMarker(mid);
+      });
+    });
+  </script>
+</body>
+</html>
