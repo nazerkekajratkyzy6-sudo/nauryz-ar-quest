@@ -3,35 +3,69 @@
 <head>
 <meta charset="UTF-8">
 <title>Табло</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+  font-family:sans-serif;
+  background:#020617;
+  color:white;
+  padding:20px;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#0f172a;
+}
+th,td{
+  border:1px solid #334155;
+  padding:10px;
+  text-align:left;
+}
+th{
+  background:#1e293b;
+}
+</style>
 </head>
-
 <body>
 
-<h1>Рейтинг</h1>
-
-<table border="1" id="table"></table>
+<h1>Табло результатов</h1>
+<table id="table">
+  <tr>
+    <th>Команда</th>
+    <th>Очки</th>
+    <th>Найдено</th>
+  </tr>
+</table>
 
 <script type="module" src="./firebase-config.js"></script>
 
 <script type="module">
+const { db, ref, onValue } = window.FB;
 
-const { db, collection, query, orderBy, onSnapshot } = window.FB;
+onValue(ref(db, "teams"), (snapshot) => {
+  let html = `
+    <tr>
+      <th>Команда</th>
+      <th>Очки</th>
+      <th>Найдено</th>
+    </tr>
+  `;
 
-const q = query(collection(db,"teams"), orderBy("score","desc"));
+  const data = snapshot.val() || {};
+  const teams = Object.values(data).sort((a, b) => (b.score || 0) - (a.score || 0));
 
-onSnapshot(q, snap => {
+  teams.forEach(team => {
+    html += `
+      <tr>
+        <td>${team.displayName || ""}</td>
+        <td>${team.score || 0}</td>
+        <td>${team.found || 0}</td>
+      </tr>
+    `;
+  });
 
-let html = "<tr><th>Команда</th><th>Очки</th></tr>";
-
-snap.forEach(doc=>{
-let t = doc.data();
-html += `<tr><td>${t.className} ${t.teamName}</td><td>${t.score}</td></tr>`;
+  document.getElementById("table").innerHTML = html;
 });
-
-document.getElementById("table").innerHTML = html;
-
-});
-
 </script>
 
 </body>
